@@ -1,0 +1,148 @@
+---
+title: "GU 2338 project"
+author: "Ziqi Shi (zs2200)"
+date: "2021/4/22"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(MASS)
+library(ISLR)
+library(tree)
+library(e1071)
+library(dplyr)
+library(foreign)
+library(nnet)
+library(stargazer)
+```
+
+
+```{r data cleanring}
+#dat <- read_excel("Desktop/2338/dat.xlsx")
+names(dat)[names(dat) == 'seqn'] <- 'id'
+depress1 <- dat %>% filter(smq040 %in% c(1,2,3), dpq020 %in% c(0,1,2,3),
+                               alq121 %in% c(0:10), dbq700 %in% c(1:5))
+depress1$smq040 <- as.factor(depress1$smq040)
+depress1$dpq020 <- as.factor(depress1$dpq020)
+depress1$alq121 <- as.factor(depress1$alq121)
+depress1$dbq700 <- as.factor(depress1$dbq700)
+```
+
+```{r train_test_split}
+set.seed(1)
+train <- sample(1:nrow(depress1),0.7*nrow(depress1))
+train_set <- depress1[train,]
+test_set <- depress1[-train,]
+tree.de <- tree(dpq020 ~ smq040 + alq121 + dbq700, data = train_set)
+tree.de
+
+tree.pred=predict (tree.de, test_set)
+plot(tree.de)
+text(tree.de)
+```
+
+According to the decision tree, the model only select the dbq700 variable to be the predictor. The prediction is not ideal and most of them give the prediction of 0. 
+
+```{r logitic regreesion}
+log <- multinom(dpq020 ~ smq040 + alq121 + dbq700, data = train_set)
+summary(log)
+```
+
+According to the multinominal logistic regression, smoking some days(02) and not at all(03) will have negative relationship to the depression factors. smoking some days(02) has small positive relationship to feeling depressed more than half day(02). For alcohol using, the general situation is that less alcohol use helps cover depress mood with its negative relationship. And for the diet health, there is a positive relationship exits. 
+
+```{r prediction}
+prediction <- predict(log, test_set, type = "probs")
+head(prediction)
+summary(test_set)
+pred<-apply(prediction,1,which.max) 
+pred[which(pred == 1)] <- 0
+pred[which(pred == 2)]  <- 1
+pred[which(pred == 3)]  <- 2
+pred[which(pred == 4)]  <- 3
+table(pred, test_set$dpq020)
+```
+
+The prediction show the result with most probability is never have depressed(0). Most values from test set are 0. However, the prediction show all the result to 0 which is never have depressed. The test error rate is 175/ 610 = 0.286
+accuracy : 435 / 610 = 0.7131148
+
+```{r lda}
+lda.fit = lda(dpq020 ~ smq040 + alq121 + dbq700, data = train_set)
+lda.fit
+lda.pred=predict (lda.fit , test_set)
+lda.class = lda.pred$class
+table(lda.class, test_set$dpq020)
+mean(lda.class == test_set$dpq020)
+```
+
+
+71.6% has been correctly predicted. Smoking some days(2) and drinking alcohol(1) everyday will have positive coefficients to people with depressed over half day(2).
+Drinking nearly everyday(2) has relative strong positive to people with no depression.
+Poor healthy diet(4,5) has relative strong positive coefficient to the depression(1)
+
+
+```{r Support Vector Machine}
+svm.fit <- svm(dpq020 ~ smq040 + alq121 + dbq700, data = train_set)
+summary(svm.fit)
+svm.pred<-predict(svm.fit,test_set,type="response")
+table(svm.pred, test_set$dpq020)
+```
+
+accuracy : 435/610 = 0.713
+
+```{r accuracy}
+sum_table <- matrix(c(0.7131148, 0.7163934, 0.7131148),ncol = 3)
+colnames(sum_table) <-c("Multinomial logit model","lda","Support Vector Machine")
+rownames(sum_table)<- c("accuracy")
+barplot(sum_table,main = "Accuracy of different predictions")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
